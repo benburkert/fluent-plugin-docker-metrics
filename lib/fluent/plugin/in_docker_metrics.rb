@@ -69,25 +69,27 @@ module Fluent
 
     # Metrics collection methods
     def get_metrics
-      list_container_ids.each do |id|
+      list_containers.each do |id, name|
         @@docker_metrics.each do |metric_name, metric_type|
-          emit_container_metric(id, metric_name, metric_type) 
+          emit_container_metric(id, name, metric_name, metric_type)
         end
 
         interface_name, interface_path = get_interface_path(id)
        
         @@network_metrics.each do |metric_name, metric_type|
-          emit_container_network_metric(id, interface_name, interface_path, metric_name, metric_type)
+          emit_container_network_metric(id, name, interface_name, interface_path, metric_name, metric_type)
         end
       end
-      
     end
 
-    def list_container_ids
-      `docker -H #{@docker_socket} ps --no-trunc -q `.split /\s+/
+    def list_containers
+      `docker -H #{@docker_socket} ps --no-trunc`.lines[1..-1].inject({}) do |h, line|
+        parts = line.split(/\s+/)
+        h.update(parts[0] => parts[-1])
+      end
     end
-   
-    def emit_container_network_metric(id, interface_name, path, metric_filename, metric_type)
+
+    def emit_container_network_metric(id, name, interface_name, path, metric_filename, metric_type)
       filename = "#{path}/#{metric_filename}"
       raise ConfigError if not File.exists?(filename)
 
@@ -102,14 +104,14 @@ module Fluent
       data[:type] = metric_type
       data[:if_name] = interface_name
       data[:td_agent_hostname] = "#{@hostname}"
-      data[:source] = "#{id}"
+      data[:source] = "#{name}:#{id}"
       mes.add(time, data)
 
       tag = "#{@tag_prefix}.network.stat"
       Engine.emit_stream(tag, mes)
     end
 
-    def emit_container_metric(id, metric_filename, metric_type, opts = {})
+    def emit_container_metric(id, name, metric_filename, metric_type, opts = {})
       path = "#{@cgroup_path}/#{metric_type}/docker/#{id}/#{metric_filename}"
       if File.exists?(path)
         parser = if metric_type != 'blkio'
@@ -129,7 +131,7 @@ module Fluent
             data[:type] = 'gauge'
           end
           data[:td_agent_hostname] = "#{@hostname}"
-          data[:source] = "#{id}"
+          data[:source] = "#{name}:#{id}"
           mes.add(time, data)
         end
         Engine.emit_stream(tag, mes)
