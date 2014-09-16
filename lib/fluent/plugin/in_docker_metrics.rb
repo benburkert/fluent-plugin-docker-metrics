@@ -104,7 +104,7 @@ module Fluent
       data[:type] = metric_type
       data[:if_name] = interface_name
       data[:td_agent_hostname] = "#{@hostname}"
-      data[:source] = "#{name}:#{id}"
+      data[:source] = "#{@tag_prefix}:#{@hostname}:#{name}:#{id}"
       mes.add(time, data)
 
       tag = "#{@tag_prefix}.network.stat"
@@ -131,7 +131,7 @@ module Fluent
             data[:type] = 'gauge'
           end
           data[:td_agent_hostname] = "#{@hostname}"
-          data[:source] = "#{name}:#{id}"
+          data[:source] = "#{@tag_prefix}:#{@hostname}:#{name}:#{id}"
           mes.add(time, data)
         end
         Engine.emit_stream(tag, mes)
@@ -181,7 +181,7 @@ module Fluent
       def parse_line(line)
         k, v = line.split(/\s+/, 2)
         if k and v
-          { key: k, value: v.to_i }
+          { key: @metric_type + "_" + k, value: v.to_i }
         else
           nil
         end
@@ -194,7 +194,7 @@ module Fluent
       def parse_line(line)
         m = BlkioLineRegexp.match(line)
         if m
-          { key: m["key"].downcase, value: m["value"] }
+          { key: @metric_type + "_" + m["key"].downcase, value: m["value"] }
         else
           nil
         end
