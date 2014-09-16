@@ -126,7 +126,7 @@ module Fluent
           if data[:key] =~ /^(?:cpuacct|blkio|memory_stat_pg)/
             data[:type] = 'counter'
           else
-            data[:type] = 'jauge'
+            data[:type] = 'gauge'
           end
           data[:td_agent_hostname] = "#{@hostname}"
           data[:source] = "#{id}"
