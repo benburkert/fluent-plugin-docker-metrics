@@ -174,7 +174,7 @@ module Fluent
       mes = MultiEventStream.new
 
       value = File.read(filename)
-      data[:key] = metric_filename
+      data[:key] = "net_#{metric_filename}"
       data[:value] = value.to_i
       data[:type] = metric_type
       data[:if_name] = interface_name
