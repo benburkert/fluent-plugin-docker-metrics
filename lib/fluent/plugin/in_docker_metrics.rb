@@ -153,9 +153,14 @@ module Fluent
     end
 
     def docker_metric_types(id)
-      parsed_state_of(id)["cgroup_paths"]
-    end
+      data = parsed_state_of(id)["cgroup_paths"]
 
+      return data unless data.nil? || data.empty?
+
+      %w[blkio cpuacct memory].inject({}) do |h, metric_type|
+        h.update(metric_type => "#{@cgroup_path}/#{metric_type}/system.slice/docker-#{id}.scope")
+      end
+    end
 
     def list_containers
       `docker -H #{@docker_socket} ps --no-trunc`.lines[1..-1].inject({}) do |h, line|
@@ -166,7 +171,8 @@ module Fluent
 
     def emit_container_network_metric(id, name, interface_name, path, metric_filename, metric_type)
       filename = "#{path}/#{metric_filename}"
-      raise ConfigError if not File.exists?(filename)
+
+      return if not File.exists?(filename)
 
       data = {}
 
